@@ -1,25 +1,29 @@
 #!/bin/bash
 export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
+export OPENBLAS_NUM_THREADS=1
 
-scriptpath=$(dirname $0)
-if [ ${scriptpath:0:1} == '.' ]; then
-	scriptpath=$PWD/$scriptpath
-fi;
+scriptpath=$(dirname $0); [ "${0:0:1}" != '/' ] && scriptpath="$PWD/$scriptpath"
 
-if [ "$1" == "" ]; then
-    echo "Usage: $0 t1_mri_filename"
-    exit 1;
-fi
+while (( "$#" )); do
+        case $1 in
+        -d) DEBUG=1;;
+        -m) MERGE=1;;
+        -h) echo "Usage  : $0 [ -d ] t1_mri_image
 
-a=$1
+Options:
+ -d   : keep the MNI-space, higher-resolution copy of the input image
+ -m   : (NOT IMPLEMENTED) merge left and right labels in a single output image."
+        exit;;
+        -*) echo "unexpected option $1"; exit;;
+         *) if [ "$filename" != "" ] ; then echo "unexpected argument $1"; exit; fi; filename=$1;;
+        esac
+        shift
+done
+
+a=$filename
 ba=$(basename $a)
-a=$(basename $a .gz)
-a=$(basename $a .nii)
-a=$(basename $a .img)
-a=$(basename $a .hdr)
-a=$(basename $a .mgz)
-a=$(basename $a .mgh)
-pth=$(dirname $1)
+for suffix in gz nii img hdr mgz mgh; do a=$(basename $a .$suffix); done
+pth=$(dirname $filename)
 
 which antsApplyTransforms > /dev/null
 if [ $? -eq "1" ]; then echo "ANTs scripts not in path"; exit; fi
@@ -41,6 +45,12 @@ python $scriptpath/apply_hipposub.py ${a}_boxL.nii.gz
 antsApplyTransforms -i ${a}_boxLhippo.nii.gz -r $ba -t [ ${a}_mni0Affine.txt,1] -o ${a}_hippoL_native.nii.gz --float -n MultiLabel[0.1]
 antsApplyTransforms -i ${a}_boxRhippo.nii.gz -r $ba -t [ ${a}_mni0Affine.txt,1] -o ${a}_hippoR_native.nii.gz --float -n MultiLabel[0.1]
 
-/bin/rm  ${a}_boxL.nii.gz ${a}_boxR.nii.gz
+
+if [ $DEBUG ]; then
+    echo "fslview $1 $pth/${a}_boxL.nii.gz $pth/${a}_boxLhippo.nii.gz -t .5 -l Random-Rainbow"
+    echo "fslview $1 $pth/${a}_boxR.nii.gz $pth/${a}_boxRhippo.nii.gz -t .5 -l Random-Rainbow"
+else
+    /bin/rm  ${a}_boxL.nii.gz ${a}_boxR.nii.gz
+fi
 #/bin/rm  ${a}_boxLhippo.nii.gz ${a}_boxRhippo.nii.gz # always keep hippo space
-echo "fslview $1 $pth/${a}_hippoL_native.nii.gz -l Random-Rainbow $pth/${a}_hippoR_native.nii.gz -l Random-Rainbow"
+echo "fslview $filename $pth/${a}_hippoL_native.nii.gz -l Random-Rainbow $pth/${a}_hippoR_native.nii.gz -l Random-Rainbow"

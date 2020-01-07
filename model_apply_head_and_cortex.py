@@ -394,7 +394,7 @@ for fname in sys.argv[1:]:
     if OUTPUT_RES64:
         out = (output.clip(0, 1) * 255).astype("uint8")
         nibabel.Nifti1Image(out, aff_reor64, img.header).to_filename(outfilename.replace("_tiv", "_tissues%d_b64" % 1))
-    if OUTPUT_NATIVE:
+    if (OUTPUT_NATIVE and OUTPUT_DEBUG):
         dnat = np.asarray(F.grid_sample(torch.as_tensor(output, dtype=torch.float32, device=device)[None,None], wgridt).cpu()[0,0])
         nibabel.Nifti1Image(dnat, img.affine).to_filename(outfilename.replace("_tiv", "_tissues%d" % 1))
         del dnat

@@ -99,22 +99,33 @@ class HippoModel(nn.Module):
         return x
 
 
+
 scriptpath = os.path.dirname(os.path.realpath(__file__))
 
 device = torch.device("cpu")
 
 net = HippoModel()
-net.load_state_dict(torch.load(scriptpath + "/torchparams/params_hipposub2_tall1_00099_00000_train2.pt", map_location=device))
+
+#net.load_state_dict(torch.load("/home/user/devel/deeptiv2_hipposub/models/torchparams/params_hipposub2_tall1_00099_00000_train4.pt", map_location=device))
+
+net.load_state_dict(torch.load(scriptpath + "/torchparams/params_hipposub2_tall1_00099_00000_train4.pt", map_location=device))
 net.to(device)
 net.eval()
 
 
-#antsApplyTransforms -i /tmp/anat_sess1_0028637.nii.gz -r igboxL.nii.gz -t /tmp/anat_sess1_0028637_mni0Affine.txt -o /tmp/boxL_anat_sess1_0028637.nii.gz --float
-# and resp. R
+#[(0, 'mask'), (1, 'parasubiculum'), (2, 'presubiculum'), (3, 'subiculum'), (4, 'CA1'), (5, 'CA3'), (6, 'CA4'), (7, 'GC-DG'), (8, 'HATA'), (9, 'fimbria'), (10, 'molecular_layer_HP'), (11, 'hippocampal_fissure'), (12, 'HP_tail')]
+
 
 nibabel.openers.Opener.default_compresslevel = 9
 
-for fnameL in sys.argv[1:]:
+args = sys.argv[1:]
+if "-saveprob" in args:
+    args.remove("-saveprob")
+    saveprob = 1
+else:
+    saveprob = 0
+
+for fnameL in args:
     assert("boxL" in fnameL)
     fnameR = fnameL.replace("boxL", "boxR")
 
@@ -127,10 +138,17 @@ for fnameL in sys.argv[1:]:
     binput -= binput.mean()
     binput /= binput.std()
     with torch.no_grad():
-        out1 = np.asarray(net(binput[None,None].to(device)).to("cpu").argmax(dim=1), np.uint8) # XXX proba not softmasked
+        out1 = net(binput[None,None].to(device)).to("cpu")
+        out = np.asarray(out1.argmax(dim=1), np.uint8)[0]
 
-    out = out1[0]
-    nibabel.Nifti1Image(out, img.affine).to_filename(fnameL.replace("boxL", "boxLhippo"))
+    nibabel.Nifti1Image(out, img.affine).to_filename(fnameL.replace("boxL", "boxL_hippo"))
+
+    if saveprob:
+        outclasses = np.rollaxis(np.asarray(torch.softmax(out1[0], dim=0)), 0, 4)
+        outclasses[...,0] = 1 - outclasses[...,0]
+        i = nibabel.Nifti1Image(np.clip(outclasses, 0.1, 1), img.affine) # remove noise (<.1) and quantify to improve compression
+        i.set_data_dtype(np.uint8)
+        i.to_filename(fnameL.replace("boxL", "boxL_hippo_prob"))
 
     print(time.time() - ct)
 
@@ -141,9 +159,17 @@ for fnameL in sys.argv[1:]:
     binput -= binput.mean()
     binput /= binput.std()
     with torch.no_grad():
-        out1 = np.asarray(net(binput[None,None].to(device)).to("cpu").argmax(dim=1), np.uint8)
+        out1 = net(binput[None,None].to(device)).to("cpu")
+        out = np.asarray(out1.argmax(dim=1), np.uint8)[0,::-1]
 
-    out = out1[0,::-1]
-    nibabel.Nifti1Image(out, img.affine).to_filename(fnameR.replace("boxR", "boxRhippo"))
+    nibabel.Nifti1Image(out, img.affine).to_filename(fnameR.replace("boxR", "boxR_hippo"))
+
+
+    if saveprob:
+        outclasses = np.rollaxis(np.asarray(torch.softmax(out1[0], dim=0))[:,::-1], 0, 4)
+        outclasses[...,0] = 1 - outclasses[...,0]
+        i = nibabel.Nifti1Image(np.clip(outclasses, 0.1, 1), img.affine)
+        i.set_data_dtype(np.uint8)
+        i.to_filename(fnameR.replace("boxR", "boxR_hippo_prob"))
 
     print(time.time() - ct)

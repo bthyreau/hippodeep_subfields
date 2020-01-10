@@ -49,10 +49,10 @@ antsApplyTransforms -i ${a}_boxR_hippo.nii.gz -r $ba -t [ ${a}_mni0Affine.txt,1]
 
 
 if [ $DEBUG ]; then
-    echo "fslview $1 $pth/${a}_boxL.nii.gz $pth/${a}_boxL_hippo.nii.gz -t .5 -l Random-Rainbow"
-    echo "fslview $1 $pth/${a}_boxR.nii.gz $pth/${a}_boxR_hippo.nii.gz -t .5 -l Random-Rainbow"
+    echo "fslview \"$pth/${a}_boxL.nii.gz\" \"$pth/${a}_boxL_hippo.nii.gz\" -t .5 -l Random-Rainbow &"
+    echo "fslview \"$pth/${a}_boxR.nii.gz\" \"$pth/${a}_boxR_hippo.nii.gz\" -t .5 -l Random-Rainbow &"
 else
     /bin/rm  ${a}_boxL.nii.gz ${a}_boxR.nii.gz
 fi
 #/bin/rm  ${a}_boxL_hippo.nii.gz ${a}_boxR_hippo.nii.gz # always keep hippo space
-echo "fslview $filename $pth/${a}_hippoL_native.nii.gz -l Random-Rainbow $pth/${a}_hippoR_native.nii.gz -l Random-Rainbow"
+echo "fslview \"$filename\" \"$pth/${a}_hippoL_native.nii.gz\" -l Random-Rainbow \"$pth/${a}_hippoR_native.nii.gz\" -l Random-Rainbow"

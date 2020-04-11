@@ -6,8 +6,8 @@ import os
 import torch.nn as nn
 import torch.nn.functional as F
 
-print("Using 8 threads")
-torch.set_num_threads(8)
+#print("Using 8 threads")
+#torch.set_num_threads(8)
 
 class HippoModel(nn.Module):
     def __init__(self):

@@ -14,6 +14,7 @@ No GPU is required
 ANTs is also necessary, as the program currently calls 'antsApplyTransforms'
 
 Tested on Linux CentOS 6.x/7.x, Ubuntu 18.04 and MacOS X 10.13, using PyTorch versions 1.0.0 to 1.4.0
+In addition, Windows compatibility patches by Bernd Foerster are available at https://github.com/bfoe/hippodeep_subfields
 
 ## Installation
 

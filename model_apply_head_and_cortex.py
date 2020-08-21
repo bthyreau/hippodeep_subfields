@@ -281,6 +281,8 @@ for fname in sys.argv[1:]:
             outfilename = outfilename.replace(suffix, "")
         outfilename = outfilename + "_tiv.nii.gz"
         img = nibabel.load(fname)
+        if type(img) is nibabel.nifti1.Nifti1Image:
+            img._affine = img.get_qform() # for ANTs compatibility
     except:
         open(fname + ".warning.txt", "a").write("can't open the file\n")
         print("Warning: can't open file. Skip")

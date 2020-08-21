@@ -2,6 +2,7 @@ import torch
 import nibabel, time, sys
 import numpy as np
 import os
+from numpy.linalg import det
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -125,15 +126,33 @@ if "-saveprob" in args:
 else:
     saveprob = 0
 
+code_labels = [ (0, 'unlabeled'), (1, 'parasubiculum'), (2, 'presubiculum'), (3, 'subiculum'),
+                (4, 'CA1'), (5, 'CA3'), (6, 'CA4'), (7, 'GC-DG'), (8, 'HATA'), (9, 'fimbria'),
+                (10, 'molecular_layer_HP'), (11, 'hippocampal_fissure'), (12, 'HP_tail')     ]
+
+code_labels_L = [(c[0]+0,  "L_"+c[1]) for c in code_labels]
+code_labels_R = [(c[0]+100,"R_"+c[1]) for c in code_labels]
+
 for fnameL in args:
     assert("boxL" in fnameL)
     fnameR = fnameL.replace("boxL", "boxR")
 
     ct = time.time()
 
-    img = nibabel.load(fnameL)
-    assert img.shape == (128, 128, 128)
+    try:
+        fn_trans = fnameL.replace("_boxL.nii.gz", "_mni0Affine.txt")
+        trans_mat = np.asfarray(open(fn_trans).readlines()[3][12:].split()[:9]).reshape(3,3)
+        scale2native = 0.125 * np.abs(det( trans_mat ))
+    except:
+        print("No transform file found (*_mni0Affine.txt) - can't compute volumes")
+        scale2native = 0
 
+
+    ## Left
+
+    img = nibabel.load(fnameL)
+    assert np.allclose(det(img.affine), -0.125)
+    assert img.shape == (128, 128, 128)
     binput = torch.from_numpy(np.asarray(img.dataobj).astype("float32", copy = False))
     binput -= binput.mean()
     binput /= binput.std()
@@ -142,6 +161,12 @@ for fnameL in args:
         out = np.asarray(out1.argmax(dim=1), np.uint8)[0]
 
     nibabel.Nifti1Image(out, img.affine).to_filename(fnameL.replace("boxL", "boxL_hippo"))
+
+    if scale2native:
+        csv_contentL = ["%d,%s,%4.4f" % (a[0], a[1], b * scale2native)
+                            for a, b in zip(code_labels_L, np.bincount(out.ravel()))][1:] \
+                     + ["99,L_total,%4.4f" % ((out > 0).sum() * scale2native)]
+
 
     if saveprob:
         outclasses = np.rollaxis(np.asarray(torch.softmax(out1[0], dim=0)), 0, 4)
@@ -152,6 +177,9 @@ for fnameL in args:
 
     print(time.time() - ct)
 
+
+
+    ## Right
 
     img = nibabel.load(fnameR)
     assert img.shape == (128, 128, 128)
@@ -164,6 +192,11 @@ for fnameL in args:
 
     nibabel.Nifti1Image(out, img.affine).to_filename(fnameR.replace("boxR", "boxR_hippo"))
 
+    if scale2native:
+        csv_contentR = ["%d,%s,%4.4f" % (a[0], a[1], b * scale2native)
+                            for a, b in zip(code_labels_R, np.bincount(out.ravel()))][1:] \
+                     + ["199,R_total,%4.4f" % ((out > 0).sum() * scale2native)]
+
 
     if saveprob:
         outclasses = np.rollaxis(np.asarray(torch.softmax(out1[0], dim=0))[:,::-1], 0, 4)
@@ -171,5 +204,11 @@ for fnameL in args:
         i = nibabel.Nifti1Image(np.clip(outclasses, 0.1, 1), img.affine)
         i.set_data_dtype(np.uint8)
         i.to_filename(fnameR.replace("boxR", "boxR_hippo_prob"))
+
+
+    if scale2native:
+        with open(fnameL.replace("_boxL.nii.gz", "_hipposubvolumes.txt"), "w") as h:
+            h.writelines(["code,name,volume\n"] + ["%s\n" % x for x in (csv_contentL + csv_contentR)])
+
 
     print(time.time() - ct)

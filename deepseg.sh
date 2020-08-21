@@ -49,6 +49,8 @@ antsApplyTransforms -i ${a}_boxR_hippo.nii.gz -r $ba -t [ ${a}_mni0Affine.txt,1]
 
 
 if [ $DEBUG ]; then
+    ConvertImagePixelType ${a}_boxL.nii.gz ${a}_boxL.nii.gz 1
+    ConvertImagePixelType ${a}_boxR.nii.gz ${a}_boxR.nii.gz 1
     echo "fslview \"$pth/${a}_boxL.nii.gz\" \"$pth/${a}_boxL_hippo.nii.gz\" -t .5 -l Random-Rainbow &"
     echo "fslview \"$pth/${a}_boxR.nii.gz\" \"$pth/${a}_boxR_hippo.nii.gz\" -t .5 -l Random-Rainbow &"
 else
